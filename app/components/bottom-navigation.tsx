@@ -1,72 +1,58 @@
 "use client"
 
-import { Home, Gift, ShoppingCart, Search, User } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { Home, Search, ShoppingBag, User, type LucideIcon } from "lucide-react"
+import { useBogoApp, type Screen } from "./app-context"
 
-interface BottomNavigationProps {
-  currentScreen: string
-  onNavigate: (screen: string) => void
-  cartCount: number
-}
+const navItems: { id: Screen; label: string; icon?: LucideIcon }[] = [
+  { id: "home", label: "Home", icon: Home },
+  { id: "search", label: "Search", icon: Search },
+  // Replaces the old Multi-Resto tab, per the brief
+  { id: "bogo", label: "BOGO Deals" },
+  { id: "cart", label: "Cart", icon: ShoppingBag },
+  { id: "profile", label: "Account", icon: User },
+]
 
-export default function BottomNavigation({ currentScreen, onNavigate, cartCount }: BottomNavigationProps) {
-  const navItems = [
-    { id: "home", label: "Home", icon: Home },
-    { id: "search", label: "Search", icon: Search },
-    { id: "bogo", label: "BOGO Deals", icon: Gift },
-    { id: "cart", label: "Cart", icon: ShoppingCart, count: cartCount },
-    { id: "profile", label: "Profile", icon: User },
-  ]
+export default function BottomNavigation() {
+  const { screen, navigate, totals } = useBogoApp()
+  const current = screen === "italian" ? "bogo" : screen
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 z-50 shadow-lg">
-      <div className="flex justify-around items-center">
+    <nav aria-label="Main" className="absolute inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white/95 px-2 pt-1.5 pb-3 backdrop-blur">
+      <ul className="flex items-end justify-around">
         {navItems.map((item) => {
-          const Icon = item.icon
-          const isActive = currentScreen === item.id
-          const isBOGO = item.id === "bogo"
-
+          const active = current === item.id
+          const isBogo = item.id === "bogo"
           return (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className={`flex flex-col items-center py-2 px-3 rounded-lg transition-colors ${
-                isActive
-                  ? isBOGO
-                    ? "text-[#5B2B91] bg-gradient-to-br from-[#5B2B91]/10 to-[#FFD200]/10"
-                    : "text-[#5B2B91] bg-[#5B2B91]/10"
-                  : "text-gray-500 hover:text-[#5B2B91]"
-              }`}
-            >
-              <div className="relative">
-                <div
-                  className={`p-1 rounded-lg ${
-                    isBOGO && isActive ? "bg-gradient-to-br from-[#5B2B91] to-[#FFD200]" : ""
-                  }`}
-                >
-                  <Icon
-                    className={`w-5 h-5 ${
-                      isBOGO && isActive ? "text-white" : isActive ? "text-[#5B2B91]" : "text-gray-500"
-                    }`}
-                  />
-                </div>
-                {item.count > 0 && (
-                  <Badge className="absolute -top-1 -right-1 bg-[#FFD200] text-black hover:bg-[#FFD200] text-xs w-5 h-5 rounded-full p-0 flex items-center justify-center">
-                    {item.count}
-                  </Badge>
-                )}
-              </div>
-              <span
-                className={`text-xs mt-1 font-medium ${
-                  isActive ? (isBOGO ? "text-[#5B2B91]" : "text-[#5B2B91]") : "text-gray-500"
-                }`}
+            <li key={item.id}>
+              <button
+                onClick={() => navigate(item.id, isBogo ? { chip: "All" } : undefined)}
+                aria-current={active ? "page" : undefined}
+                className="flex min-w-14 flex-col items-center gap-1 px-1 py-1"
               >
-                {item.label}
-              </span>
-            </button>
+                {isBogo ? (
+                  <span
+                    className={`-mt-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#5B2B91] text-sm font-black text-[#FFD200] shadow-lg ring-4 ring-white transition ${
+                      active ? "scale-105" : ""
+                    }`}
+                  >
+                    1+1
+                  </span>
+                ) : (
+                  <span className="relative">
+                    {item.icon && <item.icon className={`h-6 w-6 ${active ? "text-[#5B2B91]" : "text-gray-400"}`} strokeWidth={active ? 2.4 : 2} />}
+                    {item.id === "cart" && totals.itemCount > 0 && (
+                      <span className="absolute -top-1.5 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#FFD200] px-1 text-[11px] font-extrabold text-[#2b1146]">
+                        {totals.itemCount}
+                      </span>
+                    )}
+                  </span>
+                )}
+                <span className={`text-[11px] font-semibold ${active ? "text-[#5B2B91]" : "text-gray-500"}`}>{item.label}</span>
+              </button>
+            </li>
           )
         })}
-      </div>
-    </div>
+      </ul>
+    </nav>
   )
 }

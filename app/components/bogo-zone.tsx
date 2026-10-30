@@ -1,367 +1,380 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { useMemo, useState, type ReactNode } from "react"
+import { ArrowLeft, ChevronRight, Clock, Plus, Search, ShoppingBag, SlidersHorizontal, Star } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
-import { ArrowLeft, Filter, ChevronDown, Star, Clock, Plus, Search } from "lucide-react"
-import Image from "next/image"
+import DishArt from "./dish-art"
+import Sheet from "./sheet"
+import { VegMark } from "./bogo-sheets"
+import { useBogoApp } from "./app-context"
+import { brands, dishById, dishesForBrand, formatINR, type Brand, type Dish } from "@/lib/bogo-data"
 
-interface BOGOZoneProps {
-  onNavigate: (screen: string) => void
-  onAddToCart: () => void
+const chips = ["All", "Pizza", "Rolls", "Biryani", "Burgers", "Desserts", "Combos", "Sides"]
+const cuisineOptions = ["Pizza", "Rolls", "Biryani", "Burgers", "Desserts"]
+const mealTypeOptions = ["Combos", "Mains", "Sides"]
+const PRICE_MIN = 100
+const PRICE_MAX = 500
+
+type SortKey = "popular" | "savings" | "fastest"
+const sortLabels: Record<SortKey, string> = {
+  popular: "Most Popular in BOGO",
+  savings: "Highest Savings",
+  fastest: "Fastest Delivery",
 }
 
-export default function BOGOZone({ onNavigate, onAddToCart }: BOGOZoneProps) {
-  const [selectedCuisine, setSelectedCuisine] = useState("All")
-  const [showFilters, setShowFilters] = useState(false)
-  const [showPairingModal, setShowPairingModal] = useState(false)
-  const [selectedItem, setSelectedItem] = useState(null)
+interface Filters {
+  cuisines: string[]
+  brands: string[]
+  mealTypes: string[]
+  price: [number, number]
+}
 
-  const cuisines = ["All", "Pizza", "Rolls", "Biryani", "Burgers", "Desserts", "Combos", "Sides"]
+const emptyFilters: Filters = { cuisines: [], brands: [], mealTypes: [], price: [PRICE_MIN, PRICE_MAX] }
 
-  const restaurants = [
-    {
-      id: 1,
-      name: "Ovenstory",
-      cuisine: "Pizzas & Italian",
-      rating: 4.3,
-      time: "25 mins",
-      mainDish: "Margherita Pizza",
-      mainPrice: 399,
-      freeDish: "Cheese Burst Pizza",
-      freePrice: 399,
-      image: "/images/pizza-margherita.png",
-      freeImage: "/images/pizza-cheese-burst.png",
-      category: "Pizza",
-    },
-    {
-      id: 2,
-      name: "Faasos",
-      cuisine: "Rolls & Wraps",
-      rating: 4.1,
-      time: "20 mins",
-      mainDish: "Paneer Tikka Roll",
-      mainPrice: 249,
-      freeDish: "Veg Seekh Roll",
-      freePrice: 249,
-      image: "/images/rolls-paneer.png",
-      freeImage: "/images/rolls-veg-seekh.png",
-      category: "Rolls",
-    },
-    {
-      id: 3,
-      name: "Behrouz Biryani",
-      cuisine: "Biryani",
-      rating: 4.5,
-      time: "30 mins",
-      mainDish: "Chicken Dum Biryani",
-      mainPrice: 329,
-      freeDish: "Veg Biryani",
-      freePrice: 329,
-      image: "/images/biryani-chicken.png",
-      freeImage: "/images/biryani-veg.png",
-      category: "Biryani",
-    },
-    {
-      id: 4,
-      name: "Wendy's",
-      cuisine: "Burgers & Fast Food",
-      rating: 4.2,
-      time: "22 mins",
-      mainDish: "Classic Burger",
-      mainPrice: 299,
-      freeDish: "Chicken Burger",
-      freePrice: 299,
-      image: "/images/burgers-classic.png",
-      freeImage: "/images/burgers-chicken.png",
-      category: "Burgers",
-    },
-    {
-      id: 5,
-      name: "Sweet Truth",
-      cuisine: "Desserts",
-      rating: 4.6,
-      time: "18 mins",
-      mainDish: "Chocolate Brownies",
-      mainPrice: 199,
-      freeDish: "Chocolate Cake",
-      freePrice: 199,
-      image: "/images/dessert-brownies.png",
-      freeImage: "/images/dessert-cake.png",
-      category: "Desserts",
-    },
-  ]
+const zoneBrands = brands.filter((b) => b.id !== "italian-day")
 
-  const filteredRestaurants =
-    selectedCuisine === "All"
-      ? restaurants
-      : restaurants.filter((restaurant) => restaurant.category === selectedCuisine)
+export default function BOGOZone() {
+  const { navigate, bogoChip, setBogoChip, addPaid, addPair, totals } = useBogoApp()
+  const [query, setQuery] = useState("")
+  const [sort, setSort] = useState<SortKey>("popular")
+  const [filters, setFilters] = useState<Filters>(emptyFilters)
+  const [draft, setDraft] = useState<Filters>(emptyFilters)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
-  const handleAddToCart = (restaurant) => {
-    setSelectedItem(restaurant)
-    setShowPairingModal(true)
-    onAddToCart()
-  }
+  const activeFilterCount =
+    filters.cuisines.length +
+    filters.brands.length +
+    filters.mealTypes.length +
+    (filters.price[0] !== PRICE_MIN || filters.price[1] !== PRICE_MAX ? 1 : 0)
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    const chipMealType = bogoChip === "Combos" || bogoChip === "Sides" ? bogoChip : null
+
+    // A brand-name hit keeps every dish of that brand; otherwise the dish name has to match
+    const matchesDish = (d: Dish, brandHit: boolean) =>
+      (!chipMealType || d.mealType === chipMealType) &&
+      (filters.mealTypes.length === 0 || filters.mealTypes.includes(d.mealType)) &&
+      d.price >= filters.price[0] &&
+      d.price <= filters.price[1] &&
+      (brandHit || !q || d.name.toLowerCase().includes(q))
+
+    const list = zoneBrands
+      .filter((b) => bogoChip === "All" || chipMealType || b.cuisine === bogoChip)
+      .filter((b) => filters.cuisines.length === 0 || filters.cuisines.includes(b.cuisine))
+      .filter((b) => filters.brands.length === 0 || filters.brands.includes(b.id))
+      .map((b) => {
+        const brandHit = Boolean(q) && b.name.toLowerCase().includes(q)
+        const matching = dishesForBrand(b.id).filter((d) => matchesDish(d, brandHit))
+        return { brand: b, matching }
+      })
+      .filter((r) => r.matching.length > 0)
+
+    const savings = (b: Brand) => dishById(b.heroPair[1]).price
+    return list.sort((a, b) =>
+      sort === "popular"
+        ? b.brand.popularity - a.brand.popularity
+        : sort === "savings"
+          ? savings(b.brand) - savings(a.brand)
+          : a.brand.deliveryMins - b.brand.deliveryMins,
+    )
+  }, [bogoChip, filters, query, sort])
+
+  const toggle = (key: "cuisines" | "brands" | "mealTypes", value: string) =>
+    setDraft((d) => ({
+      ...d,
+      [key]: d[key].includes(value) ? d[key].filter((v) => v !== value) : [...d[key], value],
+    }))
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-full bg-gray-50">
       {/* Header */}
-      <div className="bg-[#5B2B91] px-4 py-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center flex-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onNavigate("home")}
-              className="text-white hover:bg-white/20 mr-3"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-bold text-white">BOGO Zone</h1>
-              <p className="text-white/80 text-sm">Buy 1 Get 1 Free on everything!</p>
-            </div>
+      <header className="bg-[#5B2B91] px-4 pt-4 pb-3 text-white">
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate("home")} aria-label="Back" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/15">
+            <ArrowLeft className="h-6 w-6" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-extrabold">BOGO Zone</h1>
+            <p className="text-sm text-white/80">Buy 1, get 1 free from the same brand</p>
           </div>
-          <Badge className="bg-[#FFD200] text-black hover:bg-[#FFD200] font-bold px-3 py-1">1+1 FREE</Badge>
+          <button
+            onClick={() => navigate("cart")}
+            aria-label={`Cart, ${totals.itemCount} items`}
+            className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/15"
+          >
+            <ShoppingBag className="h-5 w-5" />
+            {totals.itemCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#FFD200] px-1 text-[11px] font-extrabold text-[#2b1146]">
+                {totals.itemCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60 w-5 h-5" />
+        <label className="relative mt-3 block">
+          <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-white/60" />
+          <span className="sr-only">Search BOGO dishes</span>
           <input
-            type="text"
-            placeholder="Search dishes..."
-            className="w-full pl-10 pr-4 py-3 bg-white/20 backdrop-blur rounded-xl border-0 text-white placeholder-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-white/30"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search dishes or brands"
+            className="h-11 w-full rounded-xl bg-white/15 pr-3 pl-10 text-sm text-white placeholder-white/60 outline-none focus:ring-2 focus:ring-white/40"
           />
-        </div>
+        </label>
 
-        {/* Cuisine Filter Chips */}
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
-          {cuisines.map((cuisine) => (
-            <Button
-              key={cuisine}
-              variant={selectedCuisine === cuisine ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedCuisine(cuisine)}
-              className={`whitespace-nowrap rounded-full px-4 py-2 font-medium ${
-                selectedCuisine === cuisine
-                  ? "bg-white text-[#5B2B91] hover:bg-gray-100"
-                  : "border-white/30 text-white hover:bg-white/20 bg-transparent"
+        <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+          {chips.map((chip) => (
+            <button
+              key={chip}
+              onClick={() => setBogoChip(chip)}
+              aria-pressed={bogoChip === chip}
+              className={`h-9 shrink-0 rounded-full px-4 text-sm font-semibold transition ${
+                bogoChip === chip ? "bg-white text-[#5B2B91]" : "text-white ring-1 ring-white/35 hover:bg-white/10"
               }`}
             >
-              {cuisine}
-            </Button>
+              {chip}
+            </button>
           ))}
         </div>
+      </header>
+
+      {/* Filter + sort */}
+      <div className="flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-3">
+        <button
+          onClick={() => {
+            setDraft(filters)
+            setFiltersOpen(true)
+          }}
+          className="flex h-9 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-gray-800 ring-1 ring-gray-200"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#5B2B91] px-1 text-[11px] font-bold text-white">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">Sort</span>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="h-9 w-full appearance-none truncate rounded-xl bg-white pr-8 pl-3 text-sm font-semibold text-gray-800 ring-1 ring-gray-200 outline-none"
+          >
+            {(Object.keys(sortLabels) as SortKey[]).map((key) => (
+              <option key={key} value={key}>
+                {sortLabels[key]}
+              </option>
+            ))}
+          </select>
+          <ChevronRight className="pointer-events-none absolute top-1/2 right-2.5 h-4 w-4 -translate-y-1/2 rotate-90 text-gray-500" />
+        </label>
       </div>
 
-      {/* Filters and Sort */}
-      <div className="px-4 py-4 bg-gray-50 border-b flex items-center justify-between">
-        <Dialog open={showFilters} onOpenChange={setShowFilters}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="flex items-center gap-2 bg-white">
-              <Filter className="w-4 h-4" />
-              Filters
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Filters</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div>
-                <h4 className="font-semibold mb-3">Cuisine</h4>
-                <div className="space-y-3">
-                  {["Pizza", "Rolls", "Biryani", "Burgers", "Desserts"].map((cuisine) => (
-                    <div key={cuisine} className="flex items-center space-x-3">
-                      <Checkbox id={cuisine} />
-                      <label htmlFor={cuisine} className="text-sm font-medium">
-                        {cuisine}
-                      </label>
-                    </div>
-                  ))}
+      <p className="px-4 pt-3 text-sm text-gray-500">
+        {results.length} {results.length === 1 ? "brand" : "brands"} on BOGO
+        {bogoChip !== "All" && <span> · {bogoChip}</span>}
+      </p>
+
+      {/* Brand cards */}
+      <div className="space-y-4 px-4 py-3">
+        {results.map(({ brand, matching }) => {
+          const [paid, free] = brand.heroPair.map(dishById)
+          return (
+            <article key={brand.id} className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gray-100">
+              <div className="flex items-start justify-between px-4 pt-4">
+                <div>
+                  <h2 className="text-lg font-extrabold text-gray-900">{brand.name}</h2>
+                  <p className="text-sm text-gray-500">{brand.tagline}</p>
+                </div>
+                <div className="text-right text-sm">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-green-600 px-1.5 py-0.5 font-bold text-white">
+                    {brand.rating}
+                    <Star className="h-3 w-3 fill-white" />
+                  </span>
+                  <p className="mt-1 flex items-center justify-end gap-1 text-gray-500">
+                    <Clock className="h-3.5 w-3.5" />
+                    {brand.deliveryMins} mins
+                  </p>
                 </div>
               </div>
 
-              <div>
-                <h4 className="font-semibold mb-3">Brand</h4>
-                <div className="space-y-3">
-                  {["Ovenstory", "Faasos", "Behrouz Biryani", "Wendy's", "Sweet Truth"].map((brand) => (
-                    <div key={brand} className="flex items-center space-x-3">
-                      <Checkbox id={brand} />
-                      <label htmlFor={brand} className="text-sm font-medium">
-                        {brand}
-                      </label>
-                    </div>
-                  ))}
+              <div className="flex items-stretch gap-2 px-4 pt-3">
+                <PairTile dish={paid} tag="PAID" />
+                <div className="flex items-center">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFD200] text-[#2b1146]">
+                    <Plus className="h-5 w-5" strokeWidth={3} />
+                  </span>
                 </div>
+                <PairTile dish={free} tag="FREE" />
               </div>
 
-              <div>
-                <h4 className="font-semibold mb-3">Meal Type</h4>
-                <div className="space-y-3">
-                  {["Combos", "Mains", "Sides"].map((meal) => (
-                    <div key={meal} className="flex items-center space-x-3">
-                      <Checkbox id={meal} />
-                      <label htmlFor={meal} className="text-sm font-medium">
-                        {meal}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold mb-3">Price Range</h4>
-                <Slider defaultValue={[100, 500]} max={1000} step={50} className="w-full" />
-                <div className="flex justify-between text-sm text-gray-600 mt-2">
-                  <span>₹100</span>
-                  <span>₹500</span>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <Button variant="outline" size="sm" className="flex items-center gap-2 bg-white">
-          Most Popular in BOGO
-          <ChevronDown className="w-4 h-4" />
-        </Button>
-      </div>
-
-      {/* Results Count */}
-      <div className="px-4 py-3 bg-white border-b">
-        <p className="text-sm text-gray-600">{filteredRestaurants.length} restaurants available with BOGO offer</p>
-      </div>
-
-      {/* Restaurant Cards */}
-      <div className="px-4 py-4">
-        <div className="space-y-4">
-          {filteredRestaurants.map((restaurant) => (
-            <Card key={restaurant.id} className="overflow-hidden border-0 shadow-lg bg-white">
-              {/* Restaurant Header */}
-              <div className="p-4 border-b bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-lg text-gray-900">{restaurant.name}</h3>
-                    <p className="text-gray-600 text-sm">{restaurant.cuisine}</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center mb-1">
-                      <Star className="w-4 h-4 text-yellow-400 fill-current mr-1" />
-                      <span className="font-semibold text-sm">{restaurant.rating}</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <Clock className="w-4 h-4 mr-1" />
-                      <span className="text-sm">{restaurant.time}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* BOGO Deal */}
-              <div className="p-4">
-                <div className="flex gap-4">
-                  {/* Main Dish */}
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Image
-                        src={restaurant.image || "/placeholder.svg"}
-                        alt={restaurant.mainDish}
-                        width={150}
-                        height={120}
-                        className="w-full h-32 object-cover rounded-xl"
-                      />
-                      <Badge className="absolute top-2 left-2 bg-[#5B2B91] text-white hover:bg-[#5B2B91] text-xs font-bold">
-                        PAID
-                      </Badge>
-                    </div>
-                    <div className="mt-3">
-                      <h4 className="font-bold text-base text-gray-900">{restaurant.mainDish}</h4>
-                      <p className="text-lg font-bold text-[#5B2B91]">₹{restaurant.mainPrice}</p>
-                    </div>
-                  </div>
-
-                  {/* Plus Sign */}
-                  <div className="flex items-center justify-center px-2">
-                    <div className="w-8 h-8 bg-[#FFD200] rounded-full flex items-center justify-center">
-                      <Plus className="w-5 h-5 text-black font-bold" />
-                    </div>
-                  </div>
-
-                  {/* Free Dish */}
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Image
-                        src={restaurant.freeImage || "/placeholder.svg"}
-                        alt={restaurant.freeDish}
-                        width={150}
-                        height={120}
-                        className="w-full h-32 object-cover rounded-xl"
-                      />
-                      <Badge className="absolute top-2 left-2 bg-[#FFD200] text-black hover:bg-[#FFD200] text-xs font-bold">
-                        FREE
-                      </Badge>
-                    </div>
-                    <div className="mt-3">
-                      <h4 className="font-bold text-base text-gray-900">{restaurant.freeDish}</h4>
-                      <div className="flex items-center gap-2">
-                        <p className="text-lg font-bold text-[#FFD200]">₹0 – Free</p>
-                        <p className="text-sm text-gray-500 line-through">₹{restaurant.freePrice}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Add Button */}
-                <Button
-                  onClick={() => handleAddToCart(restaurant)}
-                  className="w-full bg-[#5B2B91] hover:bg-[#4A2280] text-white font-bold py-3 text-base rounded-xl mt-4"
+              <div className="px-4 pt-3">
+                <button
+                  onClick={() => addPair(paid.id, free.id)}
+                  className="h-12 w-full rounded-2xl bg-[#5B2B91] text-base font-extrabold text-white transition hover:bg-[#4A2280]"
                 >
-                  ADD BOTH FOR ₹{restaurant.mainPrice}
-                </Button>
+                  ADD BOTH FOR {formatINR(paid.price)}
+                  <span className="ml-2 text-sm font-semibold text-white/70 line-through">{formatINR(paid.price + free.price)}</span>
+                </button>
               </div>
-            </Card>
-          ))}
-        </div>
+
+              <div className="mt-4 border-t border-gray-100 px-4 pt-3 pb-4">
+                <p className="text-xs font-bold tracking-wider text-gray-500 uppercase">Or pick your own pair</p>
+                <ul className="mt-2 space-y-2">
+                  {matching.map((dish) => (
+                    <li key={dish.id} className="flex items-center gap-3">
+                      <DishArt kind={dish.art} label={dish.name} className="h-12 w-14 shrink-0 rounded-xl" />
+                      <div className="min-w-0 flex-1">
+                        <p className="flex items-center gap-1.5 text-sm font-bold text-gray-900">
+                          <VegMark veg={dish.veg} />
+                          <span className="truncate">{dish.name}</span>
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {formatINR(dish.price)} · {dish.mealType}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => addPaid(dish.id)}
+                        className="h-8 shrink-0 rounded-lg border-2 border-[#5B2B91] px-3 text-xs font-extrabold text-[#5B2B91] transition hover:bg-[#5B2B91] hover:text-white"
+                      >
+                        ADD
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </article>
+          )
+        })}
+
+        {results.length === 0 && (
+          <div className="rounded-3xl bg-white p-8 text-center ring-1 ring-gray-100">
+            <p className="font-bold text-gray-900">No BOGO deals match that</p>
+            <p className="mt-1 text-sm text-gray-500">Try another chip or clear your filters.</p>
+            <button
+              onClick={() => {
+                setFilters(emptyFilters)
+                setQuery("")
+                setBogoChip("All")
+              }}
+              className="mt-4 h-10 rounded-xl bg-[#5B2B91] px-5 text-sm font-bold text-white"
+            >
+              Clear everything
+            </button>
+          </div>
+        )}
+
+        <button
+          onClick={() => navigate("italian")}
+          className="flex w-full items-center gap-3 rounded-3xl bg-white p-3 text-left ring-1 ring-gray-100"
+        >
+          <DishArt kind="lasagna-chicken" label="Lasagna" className="h-14 w-16 shrink-0 rounded-xl" />
+          <span className="flex-1">
+            <span className="block font-extrabold text-gray-900">Italian BOGO Day</span>
+            <span className="block text-sm text-gray-500">15 Italian dishes, every Saturday</span>
+          </span>
+          <ChevronRight className="h-5 w-5 text-[#5B2B91]" />
+        </button>
       </div>
 
-      {/* Add-to-Cart Guided Pairing Modal */}
-      <Dialog open={showPairingModal} onOpenChange={setShowPairingModal}>
-        <DialogContent className="max-w-sm mx-4">
-          <div className="text-center py-6">
-            <div className="w-20 h-20 bg-[#5B2B91] rounded-full flex items-center justify-center mx-auto mb-4">
-              <Plus className="w-10 h-10 text-white" />
-            </div>
-            <h3 className="text-2xl font-bold text-[#5B2B91] mb-2">Great choice!</h3>
-            <p className="text-gray-600 mb-2 text-base">Your free item is waiting.</p>
-            <p className="text-sm text-gray-500 mb-6">Pick your free dish now</p>
-
-            <div className="space-y-4">
-              <Button
-                onClick={() => {
-                  setShowPairingModal(false)
-                  onNavigate("cart")
-                }}
-                className="w-full bg-[#FFD200] text-black hover:bg-[#E6B800] font-bold py-4 text-base rounded-xl"
-              >
-                Pick Your Free Dish Now
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowPairingModal(false)}
-                className="w-full border-[#5B2B91] text-[#5B2B91] hover:bg-[#5B2B91]/10 py-4 text-base rounded-xl"
-              >
-                Browse All
-              </Button>
-            </div>
+      {/* Filters sheet */}
+      <Sheet open={filtersOpen} onClose={() => setFiltersOpen(false)} label="Filters">
+        <h3 className="pr-10 text-xl font-extrabold">Filters</h3>
+        <FilterGroup title="Cuisine">
+          {cuisineOptions.map((c) => (
+            <CheckRow key={c} id={`f-c-${c}`} label={c} checked={draft.cuisines.includes(c)} onChange={() => toggle("cuisines", c)} />
+          ))}
+        </FilterGroup>
+        <FilterGroup title="Brand">
+          {zoneBrands.map((b) => (
+            <CheckRow key={b.id} id={`f-b-${b.id}`} label={b.name} checked={draft.brands.includes(b.id)} onChange={() => toggle("brands", b.id)} />
+          ))}
+        </FilterGroup>
+        <FilterGroup title="Meal type">
+          {mealTypeOptions.map((m) => (
+            <CheckRow key={m} id={`f-m-${m}`} label={m} checked={draft.mealTypes.includes(m)} onChange={() => toggle("mealTypes", m)} />
+          ))}
+        </FilterGroup>
+        <div className="mt-5">
+          <h4 className="font-bold">Price range</h4>
+          <Slider
+            className="mt-4"
+            min={PRICE_MIN}
+            max={PRICE_MAX}
+            step={10}
+            value={draft.price}
+            onValueChange={(v) => setDraft((d) => ({ ...d, price: [v[0], v[1]] }))}
+            aria-label="Price range"
+          />
+          <div className="mt-2 flex justify-between text-sm font-semibold text-gray-600">
+            <span>{formatINR(draft.price[0])}</span>
+            <span>{formatINR(draft.price[1])}</span>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+        <div className="mt-6 flex gap-3">
+          <button onClick={() => setDraft(emptyFilters)} className="h-12 flex-1 rounded-2xl font-bold text-[#5B2B91] ring-2 ring-[#5B2B91]">
+            Reset
+          </button>
+          <button
+            onClick={() => {
+              setFilters(draft)
+              setFiltersOpen(false)
+            }}
+            className="h-12 flex-[2] rounded-2xl bg-[#5B2B91] font-extrabold text-white"
+          >
+            Show results
+          </button>
+        </div>
+      </Sheet>
     </div>
+  )
+}
+
+function PairTile({ dish, tag }: { dish: Dish; tag: "PAID" | "FREE" }) {
+  const free = tag === "FREE"
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="relative">
+        <DishArt kind={dish.art} label={dish.name} className="h-28 w-full rounded-2xl" />
+        <span
+          className={`absolute top-2 left-2 rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${
+            free ? "bg-[#FFD200] text-[#2b1146]" : "bg-[#5B2B91] text-white"
+          }`}
+        >
+          {tag}
+        </span>
+      </div>
+      <p className="mt-2 line-clamp-2 text-sm leading-tight font-bold text-gray-900">{dish.name}</p>
+      {free ? (
+        <p className="mt-1 flex flex-wrap items-center gap-x-1.5">
+          <span className="rounded-md bg-[#FFD200] px-1.5 py-0.5 text-xs font-extrabold text-[#2b1146]">₹0 – Free</span>
+          <span className="text-xs text-gray-400 line-through">{formatINR(dish.price)}</span>
+        </p>
+      ) : (
+        <p className="mt-1 text-base font-extrabold text-[#5B2B91]">{formatINR(dish.price)}</p>
+      )}
+    </div>
+  )
+}
+
+function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <fieldset className="mt-5">
+      <legend className="font-bold">{title}</legend>
+      <div className="mt-2 grid grid-cols-2 gap-2">{children}</div>
+    </fieldset>
+  )
+}
+
+function CheckRow({ id, label, checked, onChange }: { id: string; label: string; checked: boolean; onChange: () => void }) {
+  return (
+    <label htmlFor={id} className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl bg-gray-50 px-3 text-sm font-medium">
+      <Checkbox id={id} checked={checked} onCheckedChange={onChange} />
+      {label}
+    </label>
   )
 }

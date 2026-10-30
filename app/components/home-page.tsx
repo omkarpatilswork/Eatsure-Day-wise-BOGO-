@@ -1,344 +1,263 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, MapPin, Search, Bell } from "lucide-react"
-import Image from "next/image"
+import { useEffect, useState } from "react"
+import { Bell, ChevronDown, ChevronRight, MapPin, Search, Star } from "lucide-react"
+import DishArt, { type DishArtKind } from "./dish-art"
+import { useBogoApp } from "./app-context"
+import { brands, dishById, dishes, formatINR, weekThemes } from "@/lib/bogo-data"
 
-interface HomePageProps {
-  onNavigate: (screen: string) => void
-  onAddToCart: () => void
+const crazyDeals = [
+  { brandId: "ovenstory", title: "Pizza BOGO" },
+  { brandId: "faasos", title: "Rolls BOGO" },
+  { brandId: "behrouz", title: "Biryani BOGO" },
+  { brandId: "wendys", title: "Burgers BOGO" },
+  { brandId: "sweet-truth", title: "Desserts BOGO" },
+]
+
+const quickCategories: { name: string; art: DishArtKind }[] = [
+  { name: "Pizza", art: "pizza-margherita" },
+  { name: "Rolls", art: "roll-paneer" },
+  { name: "Biryani", art: "biryani-chicken" },
+  { name: "Burgers", art: "burger-classic" },
+  { name: "Desserts", art: "brownie" },
+  { name: "Combos", art: "biryani-combo" },
+  { name: "Sides", art: "fries" },
+  { name: "Italian", art: "pasta-alfredo" },
+]
+
+const dayArt: Record<string, DishArtKind> = {
+  Combos: "roll-combo",
+  Biryani: "biryani-chicken",
+  Rolls: "roll-paneer",
+  Burgers: "burger-classic",
+  Desserts: "cake",
+  Pizza: "pizza-pepperoni",
+  italian: "lasagna-veg",
 }
 
-export default function HomePage({ onNavigate, onAddToCart }: HomePageProps) {
-  const [currentSlide, setCurrentSlide] = useState(0)
+export default function HomePage() {
+  const { navigate, addPaid, cart } = useBogoApp()
+  // Today's weekday is only known in the browser, so it is filled in after mount
+  const [today, setToday] = useState<number | null>(null)
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
 
-  const cuisineSlides = [
-    {
-      name: "Pizza",
-      image: "/images/pizza-margherita.png",
-      color: "from-red-500 to-orange-500",
-      description: "Italian classics",
-    },
-    {
-      name: "Rolls",
-      image: "/images/rolls-paneer.png",
-      color: "from-green-500 to-teal-500",
-      description: "Fresh wraps",
-    },
-    {
-      name: "Biryani",
-      image: "/images/biryani-chicken.png",
-      color: "from-yellow-500 to-orange-500",
-      description: "Aromatic rice",
-    },
-    {
-      name: "Desserts",
-      image: "/images/dessert-brownies.png",
-      color: "from-pink-500 to-purple-500",
-      description: "Sweet treats",
-    },
-  ]
+  useEffect(() => {
+    const day = new Date().getDay()
+    setToday(day)
+    setSelectedDay(day)
+  }, [])
 
-  const bogoDeals = [
-    {
-      name: "Margherita Pizza",
-      restaurant: "Ovenstory",
-      originalPrice: 399,
-      image: "/images/pizza-margherita.png",
-      rating: 4.3,
-      time: "25-30 min",
-      description: "Buy 1 Get 1 Free",
-    },
-    {
-      name: "Paneer Tikka Roll",
-      restaurant: "Faasos",
-      originalPrice: 249,
-      image: "/images/rolls-paneer.png",
-      rating: 4.1,
-      time: "20-25 min",
-      description: "Buy 1 Get 1 Free",
-    },
-    {
-      name: "Chicken Dum Biryani",
-      restaurant: "Behrouz Biryani",
-      originalPrice: 329,
-      image: "/images/biryani-chicken.png",
-      rating: 4.5,
-      time: "30-35 min",
-      description: "Buy 1 Get 1 Free",
-    },
-    {
-      name: "Classic Burger",
-      restaurant: "Wendy's",
-      originalPrice: 299,
-      image: "/images/burgers-classic.png",
-      rating: 4.2,
-      time: "20-25 min",
-      description: "Buy 1 Get 1 Free",
-    },
-    {
-      name: "Chocolate Brownies",
-      restaurant: "Sweet Truth",
-      originalPrice: 199,
-      image: "/images/dessert-brownies.png",
-      rating: 4.6,
-      time: "15-20 min",
-      description: "Buy 1 Get 1 Free",
-    },
-  ]
-
-  const quickCategories = [
-    { name: "Pizza", icon: "🍕", image: "/images/pizza-margherita.png" },
-    { name: "Rolls", icon: "🌯", image: "/images/rolls-paneer.png" },
-    { name: "Biryani", icon: "🍛", image: "/images/biryani-chicken.png" },
-    { name: "Burgers", icon: "🍔", image: "/images/burgers-classic.png" },
-    { name: "Desserts", icon: "🍰", image: "/images/dessert-brownies.png" },
-    { name: "Combos", icon: "🍽️", image: "/images/pizza-margherita.png" },
-    { name: "Sides", icon: "🍟", image: "/images/rolls-paneer.png" },
-    { name: "Beverages", icon: "🥤", image: "/images/dessert-cake.png" },
-  ]
+  const openChip = (chip: string) => (chip === "italian" || chip === "Italian" ? navigate("italian") : navigate("bogo", { chip }))
+  const bogoDishCount = dishes.length
+  const brandCount = brands.filter((b) => b.id !== "italian-day").length
+  const theme = selectedDay === null ? null : weekThemes[selectedDay]
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="bg-white px-4 py-4 border-b">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-[#5B2B91]">EatSure</h1>
-            <div className="flex items-center text-sm text-gray-600 mt-1">
-              <MapPin className="w-4 h-4 mr-1" />
-              <span className="truncate">Koramangala, Bangalore</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="text-gray-600">
-              <Bell className="w-5 h-5" />
-            </Button>
-            <div className="w-10 h-10 bg-[#5B2B91] rounded-full flex items-center justify-center text-white font-bold text-lg">
-              U
-            </div>
-          </div>
-        </div>
-
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Search for dishes, restaurants..."
-            className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-xl border-0 text-sm focus:outline-none focus:ring-2 focus:ring-[#5B2B91]/20"
-          />
-        </div>
+    <div className="bg-white">
+      <div className="bg-[#5B2B91]/8 px-4 py-1.5 text-center text-[11px] font-medium text-[#5B2B91] md:hidden">
+        Concept prototype · not the real EatSure app
       </div>
 
-      {/* Hero Banner */}
-      <div className="relative bg-[#5B2B91] px-4 py-8 overflow-hidden">
-        <div className="relative z-10">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-white uppercase mb-2 tracking-wide">UNLIMITED BUY 1 GET 1</h2>
-            <p className="text-white/90 text-base mb-4">
-              Buy 1 Get 1 <span className="bg-[#FFD200] text-black px-3 py-1 rounded-full font-bold text-sm">FREE</span>{" "}
-              on everything!
+      {/* Header */}
+      <header className="px-4 pt-4 pb-3">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-2xl font-black tracking-tight text-[#5B2B91]">
+              Eat<span className="text-[#1d0d33]">Sure</span>
             </p>
-            <p className="text-white/80 text-sm">No minimum order • No delivery fee</p>
+            <button className="mt-0.5 flex items-center text-sm text-gray-600">
+              <MapPin className="mr-1 h-4 w-4 text-[#5B2B91]" />
+              <span className="truncate font-semibold text-gray-800">Koramangala</span>
+              <span className="ml-1 truncate">· Bengaluru</span>
+              <ChevronDown className="ml-0.5 h-4 w-4" />
+            </button>
           </div>
+          <div className="flex items-center gap-2">
+            <button aria-label="Notifications" className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-50 text-gray-600">
+              <Bell className="h-5 w-5" />
+            </button>
+            <button
+              aria-label="Account"
+              onClick={() => navigate("profile")}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5B2B91] text-lg font-bold text-white"
+            >
+              G
+            </button>
+          </div>
+        </div>
 
-          {/* Cuisine Carousel */}
-          <div className="relative mb-6">
-            <div className="overflow-hidden rounded-2xl">
-              <div
-                className="flex transition-transform duration-500 ease-in-out"
-                style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+        <button
+          onClick={() => navigate("search")}
+          className="mt-3 flex h-12 w-full items-center gap-2 rounded-2xl bg-gray-50 px-3 text-left text-sm text-gray-400 ring-1 ring-gray-100"
+        >
+          <Search className="h-5 w-5" />
+          Search for dishes, brands…
+        </button>
+      </header>
+
+      {/* Hero banner */}
+      <section className="relative mx-4 overflow-hidden rounded-[28px] bg-[#5B2B91] px-5 pt-6 pb-5 text-white">
+        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/10" aria-hidden />
+        <div className="absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-[#FFD200]/15" aria-hidden />
+        <div className="relative">
+          <p className="text-xs font-bold tracking-[0.2em] text-[#FFD200] uppercase">Always on · every day</p>
+          <h1 className="mt-2 text-[34px] leading-[0.95] font-black uppercase">
+            Unlimited
+            <br />
+            Buy 1 Get 1{" "}
+            <span className="inline-block -rotate-3 rounded-lg bg-[#FFD200] px-2 py-0.5 text-[#2b1146]">Free</span>
+          </h1>
+          <p className="mt-3 text-sm text-white/85">
+            {bogoDishCount} dishes from {brandCount} brands and Italian Day. No minimum order, no code to apply.
+          </p>
+
+          <div className="-mx-5 mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
+            {quickCategories.slice(0, 5).map((c) => (
+              <button
+                key={c.name}
+                onClick={() => openChip(c.name)}
+                className="w-[132px] shrink-0 snap-start overflow-hidden rounded-2xl bg-white/12 text-left ring-1 ring-white/15"
               >
-                {cuisineSlides.map((slide, index) => (
-                  <div key={index} className="w-full flex-shrink-0 px-2">
-                    <div className="bg-white/10 backdrop-blur p-6 rounded-2xl text-center relative overflow-hidden">
-                      <div className="relative z-10">
-                        <Image
-                          src={slide.image || "/placeholder.svg"}
-                          alt={slide.name}
-                          width={140}
-                          height={100}
-                          className="mx-auto mb-3 rounded-xl shadow-lg object-cover"
-                        />
-                        <h3 className="text-white font-bold text-xl mb-1">{slide.name}</h3>
-                        <p className="text-white/80 text-sm mb-3">{slide.description}</p>
-                        <Badge className="bg-[#FFD200] text-black hover:bg-[#FFD200] font-bold px-4 py-1">
-                          1+1 FREE
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Carousel Indicators */}
-            <div className="flex justify-center mt-4 gap-2">
-              {cuisineSlides.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentSlide(index)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    currentSlide === index ? "bg-[#FFD200] w-6" : "bg-white/50"
-                  }`}
-                />
-              ))}
-            </div>
-
-            {/* Carousel Controls */}
-            <button
-              onClick={() => setCurrentSlide(Math.max(0, currentSlide - 1))}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur rounded-full p-3 disabled:opacity-50"
-              disabled={currentSlide === 0}
-            >
-              <ChevronLeft className="w-5 h-5 text-white" />
-            </button>
-            <button
-              onClick={() => setCurrentSlide(Math.min(cuisineSlides.length - 1, currentSlide + 1))}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur rounded-full p-3 disabled:opacity-50"
-              disabled={currentSlide === cuisineSlides.length - 1}
-            >
-              <ChevronRight className="w-5 h-5 text-white" />
-            </button>
+                <DishArt kind={c.art} label={c.name} className="h-[84px] w-full" />
+                <span className="flex items-center justify-between px-3 py-2">
+                  <span className="text-sm font-bold">{c.name}</span>
+                  <span className="rounded-md bg-[#FFD200] px-1.5 text-[11px] font-extrabold text-[#2b1146]">1+1</span>
+                </span>
+              </button>
+            ))}
           </div>
 
-          {/* CTA Button */}
-          <Button
-            onClick={() => onNavigate("bogo")}
-            className="w-full bg-white text-[#5B2B91] hover:bg-gray-100 font-bold py-4 rounded-2xl text-lg shadow-lg"
+          <button
+            onClick={() => navigate("bogo", { chip: "All" })}
+            className="mt-4 h-12 w-full rounded-2xl bg-white text-base font-extrabold tracking-wide text-[#5B2B91] shadow-lg"
           >
             EXPLORE BOGO ZONE
-          </Button>
+          </button>
         </div>
+      </section>
 
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-8 right-8 w-24 h-24 border-2 border-white rounded-full animate-pulse"></div>
-          <div className="absolute bottom-8 left-8 w-16 h-16 border-2 border-white rounded-full animate-pulse delay-1000"></div>
-          <div className="absolute top-1/2 left-4 w-8 h-8 border-2 border-white rounded-full animate-pulse delay-500"></div>
+      {/* Day-wise themes */}
+      <section className="px-4 pt-6">
+        <div className="flex items-end justify-between">
+          <div>
+            <h2 className="text-lg font-extrabold text-gray-900">BOGO all week</h2>
+            <p className="text-xs text-gray-500">Every brand is on BOGO daily. One cuisine gets the spotlight.</p>
+          </div>
         </div>
-      </div>
+        <div className="mt-3 grid grid-cols-7 gap-1.5">
+          {weekThemes.map((d, i) => {
+            const active = selectedDay === i
+            return (
+              <button
+                key={d.day}
+                onClick={() => setSelectedDay(i)}
+                aria-pressed={active}
+                className={`flex h-14 flex-col items-center justify-center rounded-2xl text-xs font-bold transition ${
+                  active ? "bg-[#5B2B91] text-white shadow-md" : "bg-gray-50 text-gray-600"
+                }`}
+              >
+                {d.short}
+                <span className={`mt-1 h-1.5 w-1.5 rounded-full ${today === i ? "bg-[#FFD200]" : "bg-transparent"}`} />
+              </button>
+            )
+          })}
+        </div>
+        {theme && (
+          <button
+            onClick={() => openChip(theme.chip)}
+            className="mt-3 flex w-full items-center gap-3 overflow-hidden rounded-2xl bg-[#FFF6CC] p-2 pr-3 text-left ring-1 ring-[#FFD200]/60"
+          >
+            <DishArt kind={dayArt[theme.chip]} label={theme.title} className="h-16 w-20 shrink-0 rounded-xl" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[11px] font-bold tracking-wider text-[#5B2B91] uppercase">
+                {selectedDay === today ? "Today" : theme.day}
+              </span>
+              <span className="block truncate font-extrabold text-gray-900">{theme.title}</span>
+              <span className="block text-xs text-gray-600">Spotlight deals, still Buy 1 Get 1</span>
+            </span>
+            <ChevronRight className="h-5 w-5 text-[#5B2B91]" />
+          </button>
+        )}
+      </section>
 
-      {/* Quick Categories */}
-      <div className="px-4 py-6">
-        <h3 className="text-xl font-bold text-gray-900 mb-4">Quick Categories</h3>
-        <div className="grid grid-cols-4 gap-4">
-          {quickCategories.map((category) => (
-            <button
-              key={category.name}
-              onClick={() => onNavigate("bogo")}
-              className="text-center p-3 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-16 h-16 bg-gradient-to-br from-[#5B2B91]/10 to-[#FFD200]/10 rounded-2xl flex items-center justify-center mx-auto mb-2 overflow-hidden">
-                <Image
-                  src={category.image || "/placeholder.svg"}
-                  alt={category.name}
-                  width={48}
-                  height={48}
-                  className="rounded-xl object-cover"
-                />
-              </div>
-              <p className="text-xs font-medium text-gray-700 leading-tight">{category.name}</p>
+      {/* Quick categories */}
+      <section className="px-4 pt-6">
+        <h2 className="text-lg font-extrabold text-gray-900">What are you craving?</h2>
+        <div className="mt-3 grid grid-cols-4 gap-x-2 gap-y-3">
+          {quickCategories.map((c) => (
+            <button key={c.name} onClick={() => openChip(c.name)} className="text-center">
+              <DishArt kind={c.art} label={c.name} className="mx-auto h-16 w-16 rounded-2xl" />
+              <span className="mt-1.5 block text-xs font-semibold text-gray-700">{c.name}</span>
             </button>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Crazy Deals Section */}
-      <div className="px-4 py-6 bg-gray-50">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-gray-900">Crazy Deals</h3>
-          <Button variant="ghost" className="text-[#5B2B91] font-semibold" onClick={() => onNavigate("bogo")}>
-            View All
-          </Button>
+      {/* Crazy Deals */}
+      <section className="mt-6 bg-gray-50 py-5">
+        <div className="flex items-center justify-between px-4">
+          <h2 className="text-lg font-extrabold text-gray-900">Crazy Deals</h2>
+          <button onClick={() => navigate("bogo", { chip: "All" })} className="text-sm font-bold text-[#5B2B91]">
+            View all
+          </button>
         </div>
-
-        {/* BOGO Cards Horizontal Scroll */}
-        <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
-          {bogoDeals.map((deal, index) => (
-            <Card key={index} className="flex-shrink-0 w-80 relative overflow-hidden border-0 shadow-lg bg-white">
-              <div className="relative">
-                <Image
-                  src={deal.image || "/placeholder.svg"}
-                  alt={deal.name}
-                  width={320}
-                  height={180}
-                  className="w-full h-44 object-cover"
-                />
-
-                {/* BOGO Overlay */}
-                <div className="absolute top-4 left-4">
-                  <Badge className="bg-[#FFD200] text-black hover:bg-[#FFD200] font-bold text-sm px-4 py-2 shadow-lg">
+        <div className="mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none]">
+          {crazyDeals.map((deal) => {
+            const brand = brands.find((b) => b.id === deal.brandId)!
+            const paid = dishById(brand.heroPair[0])
+            const inCart = cart.lines.some((l) => l.paidDishId === paid.id)
+            return (
+              <article key={deal.brandId} className="w-[260px] shrink-0 snap-start overflow-hidden rounded-3xl bg-white shadow-md">
+                <div className="relative">
+                  <DishArt kind={paid.art} label={paid.name} className="h-36 w-full" />
+                  <span className="absolute top-3 left-3 rounded-lg bg-[#FFD200] px-2 py-1 text-xs font-extrabold text-[#2b1146] shadow">
                     1+1 FREE
-                  </Badge>
+                  </span>
                 </div>
-
-                {/* Restaurant Info Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4">
-                  <h4 className="text-white font-bold text-lg mb-1">{deal.name}</h4>
-                  <p className="text-white/90 text-sm mb-1">
-                    {deal.description} – {deal.restaurant}
+                <div className="p-3.5">
+                  <p className="text-xs font-bold tracking-wider text-[#5B2B91] uppercase">{deal.title}</p>
+                  <h3 className="mt-0.5 font-extrabold text-gray-900">Buy 1 Get 1 Free – {brand.name.replace(" Pizza", "")}</h3>
+                  <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
+                    <Star className="h-3.5 w-3.5 fill-green-600 text-green-600" />
+                    {brand.rating} · {brand.deliveryMins} mins
                   </p>
-                  <p className="text-white/80 text-xs mb-3">
-                    ★{deal.rating} • {deal.time}
-                  </p>
-
-                  <div className="flex items-center justify-between">
-                    <div className="text-white">
-                      <div className="text-lg font-bold">₹{deal.originalPrice}</div>
-                      <div className="text-[#FFD200] text-sm font-bold">+ 1 FREE</div>
-                    </div>
-
-                    <Button
-                      onClick={() => {
-                        onAddToCart()
-                        onNavigate("bogo")
-                      }}
-                      size="sm"
-                      className="bg-white text-[#5B2B91] hover:bg-gray-100 font-bold px-4 py-2 rounded-xl shadow-lg"
+                  <div className="mt-3 flex items-center justify-between">
+                    <p className="text-sm text-gray-600">
+                      <span className="text-base font-extrabold text-gray-900">{formatINR(paid.price)}</span> for 2
+                    </p>
+                    <button
+                      onClick={() => addPaid(paid.id)}
+                      className="h-9 rounded-xl border-2 border-[#5B2B91] px-4 text-sm font-extrabold text-[#5B2B91] transition hover:bg-[#5B2B91] hover:text-white"
                     >
-                      ADD
-                    </Button>
+                      {inCart ? "ADD +1" : "ADD"}
+                    </button>
                   </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </article>
+            )
+          })}
         </div>
-      </div>
+      </section>
 
-      {/* Special Offers Banner */}
-      <div className="px-4 py-6">
-        {/* Italian BOGO Day Special Banner */}
-        <Card className="bg-gradient-to-r from-red-500 via-white to-green-500 p-6 border-0 text-center mb-4 relative overflow-hidden">
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="relative z-10">
-            <h3 className="text-black font-bold text-xl mb-2">🇮🇹 Italian BOGO Day 🍕🍝</h3>
-            <p className="text-black/80 text-sm mb-4">Buy 1 Get 1 FREE on all Italian favorites!</p>
-            <Button
-              className="bg-[#5B2B91] text-white hover:bg-[#4A2280] font-bold px-6 py-2 rounded-xl"
-              onClick={() => onNavigate("italian")}
-            >
-              Explore Italian Menu
-            </Button>
-          </div>
-        </Card>
-
-        <Card className="bg-gradient-to-r from-[#FFD200] to-[#FFA500] p-6 border-0 text-center">
-          <h3 className="text-black font-bold text-xl mb-2">🎉 Weekend Special!</h3>
-          <p className="text-black/80 text-sm mb-4">Extra 20% off on orders above ₹299</p>
-          <Button
-            className="bg-[#5B2B91] text-white hover:bg-[#4A2280] font-bold px-6 py-2 rounded-xl"
-            onClick={() => onNavigate("bogo")}
-          >
-            Claim Now
-          </Button>
-        </Card>
-      </div>
+      {/* Italian day banner */}
+      <section className="px-4 py-6">
+        <button
+          onClick={() => navigate("italian")}
+          className="relative flex w-full items-center overflow-hidden rounded-3xl bg-[#1f6f43] text-left text-white"
+        >
+          <span className="absolute inset-y-0 right-0 w-2/5 bg-[#c8333b]" aria-hidden />
+          <span className="absolute inset-y-0 right-[40%] w-[14%] bg-white" aria-hidden />
+          <span className="relative z-10 flex-1 p-5">
+            <span className="block text-[11px] font-bold tracking-[0.18em] text-[#FFD200] uppercase">Every Saturday</span>
+            <span className="mt-1 block text-2xl leading-tight font-black">Italian BOGO Day</span>
+            <span className="mt-1 block text-sm text-white/85">Pizza, pasta and dolci. Buy 1, get 1 free.</span>
+            <span className="mt-3 inline-flex items-center rounded-xl bg-white px-3 py-1.5 text-sm font-bold text-[#1f6f43]">
+              See the menu <ChevronRight className="h-4 w-4" />
+            </span>
+          </span>
+          <DishArt kind="pasta-pesto" label="Pesto pasta" className="relative z-10 mr-3 h-28 w-28 shrink-0 rounded-2xl shadow-lg" />
+        </button>
+      </section>
     </div>
   )
 }

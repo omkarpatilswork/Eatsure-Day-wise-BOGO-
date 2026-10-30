@@ -1,228 +1,105 @@
 "use client"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { ArrowLeft, Filter, Plus } from "lucide-react"
-import Image from "next/image"
 
-interface ItalianBOGODayProps {
-  onNavigate: (screen: string) => void
-  onAddToCart: () => void
+import { useState } from "react"
+import { ArrowLeft, Plus } from "lucide-react"
+import DishArt from "./dish-art"
+import { VegMark } from "./bogo-sheets"
+import { useBogoApp } from "./app-context"
+import { dishesForBrand, formatINR, type Dish } from "@/lib/bogo-data"
+
+const tabs = ["All", "Pizza", "Pasta & Risotto", "Starters", "Dolci"] as const
+type Tab = (typeof tabs)[number]
+
+const tabOf = (dish: Dish): Tab => {
+  if (dish.art.startsWith("pizza")) return "Pizza"
+  if (dish.mealType === "Sides") return "Starters"
+  if (dish.mealType === "Desserts") return "Dolci"
+  return "Pasta & Risotto"
 }
 
-export default function ItalianBOGODay({ onNavigate, onAddToCart }: ItalianBOGODayProps) {
-  const italianDishes = [
-    {
-      id: 1,
-      name: "Margherita Pizza",
-      price: 299,
-      description: "Fresh basil, mozzarella, tomato sauce.",
-      image: "/images/italian/margherita-pizza.png",
-      category: "Pizza",
-    },
-    {
-      id: 2,
-      name: "Pepperoni Pizza",
-      price: 399,
-      description: "Spicy pepperoni, mozzarella, tangy tomato base.",
-      image: "/images/italian/pepperoni-pizza.png",
-      category: "Pizza",
-    },
-    {
-      id: 3,
-      name: "Four Cheese Pizza",
-      price: 449,
-      description: "Mozzarella, parmesan, cheddar, gouda.",
-      image: "/images/italian/four-cheese-pizza.png",
-      category: "Pizza",
-    },
-    {
-      id: 4,
-      name: "Pesto Penne Pasta",
-      price: 349,
-      description: "Creamy basil pesto with toasted pine nuts.",
-      image: "/images/italian/pesto-penne.png",
-      category: "Pasta",
-    },
-    {
-      id: 5,
-      name: "Alfredo Fettuccine",
-      price: 379,
-      description: "Rich parmesan cream sauce with garlic.",
-      image: "/images/italian/alfredo-fettuccine.png",
-      category: "Pasta",
-    },
-    {
-      id: 6,
-      name: "Spaghetti Aglio e Olio",
-      price: 299,
-      description: "Olive oil, garlic, chili flakes.",
-      image: "/images/italian/spaghetti-aglio-olio.png",
-      category: "Pasta",
-    },
-    {
-      id: 7,
-      name: "Chicken Lasagna",
-      price: 449,
-      description: "Layers of pasta, chicken, béchamel, cheese.",
-      image: "/images/italian/chicken-lasagna.png",
-      category: "Pasta",
-    },
-    {
-      id: 8,
-      name: "Veg Lasagna",
-      price: 429,
-      description: "Spinach, zucchini, ricotta, marinara sauce.",
-      image: "/images/italian/veg-lasagna.png",
-      category: "Pasta",
-    },
-    {
-      id: 9,
-      name: "Mushroom Risotto",
-      price: 399,
-      description: "Arborio rice, porcini mushrooms, parmesan.",
-      image: "/images/italian/mushroom-risotto.png",
-      category: "Rice",
-    },
-    {
-      id: 10,
-      name: "Bruschetta",
-      price: 249,
-      description: "Grilled bread, tomatoes, basil, olive oil.",
-      image: "/images/italian/bruschetta.png",
-      category: "Appetizer",
-    },
-    {
-      id: 11,
-      name: "Garlic Bread with Cheese",
-      price: 199,
-      description: "Golden crust, gooey cheese topping.",
-      image: "/images/italian/garlic-bread-cheese.png",
-      category: "Appetizer",
-    },
-    {
-      id: 12,
-      name: "Tiramisu",
-      price: 249,
-      description: "Espresso-soaked sponge, mascarpone cream.",
-      image: "/images/italian/tiramisu.png",
-      category: "Dessert",
-    },
-    {
-      id: 13,
-      name: "Panna Cotta",
-      price: 229,
-      description: "Creamy vanilla set dessert with berry coulis.",
-      image: "/images/italian/panna-cotta.png",
-      category: "Dessert",
-    },
-    {
-      id: 14,
-      name: "Cannoli",
-      price: 249,
-      description: "Crispy shell with sweet ricotta filling.",
-      image: "/images/italian/cannoli.png",
-      category: "Dessert",
-    },
-    {
-      id: 15,
-      name: "Gelato (2 scoops)",
-      price: 199,
-      description: "Italian-style ice cream, assorted flavors.",
-      image: "/images/italian/gelato.png",
-      category: "Dessert",
-    },
-  ]
+export default function ItalianBOGODay() {
+  const { navigate, addPaid, totals } = useBogoApp()
+  const [tab, setTab] = useState<Tab>("All")
+  const italian = dishesForBrand("italian-day")
+  const visible = tab === "All" ? italian : italian.filter((d) => tabOf(d) === tab)
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="bg-white px-4 py-4 border-b border-gray-100 sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onNavigate("home")}
-              className="text-gray-600 hover:bg-gray-100 mr-3"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Italian BOGO Day 🍕🍝</h1>
-              <p className="text-gray-600 text-sm mt-1">Buy 1, Get 1 Free on all Italian favorites today only!</p>
+    <div className="min-h-full bg-white">
+      <header className="sticky top-0 z-10 border-b border-gray-100 bg-white/95 px-4 pt-4 pb-3 backdrop-blur">
+        <div className="flex items-start gap-2">
+          <button onClick={() => navigate("home")} aria-label="Back" className="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-gray-100">
+            <ArrowLeft className="h-6 w-6 text-gray-700" />
+          </button>
+          <div className="min-w-0">
+            <div className="flex h-1.5 w-16 overflow-hidden rounded-full" aria-hidden>
+              <span className="flex-1 bg-[#1f6f43]" />
+              <span className="flex-1 bg-gray-200" />
+              <span className="flex-1 bg-[#c8333b]" />
             </div>
+            <h1 className="mt-1.5 text-2xl font-black text-gray-900">Italian BOGO Day</h1>
+            <p className="text-sm text-gray-500">Every Saturday. Buy any Italian dish, get one of equal or lower price free.</p>
           </div>
-          <Button variant="outline" size="icon" className="border-gray-200 bg-transparent">
-            <Filter className="w-5 h-5 text-gray-600" />
-          </Button>
         </div>
-      </div>
-
-      {/* Dish Grid */}
-      <div className="px-4 py-6">
-        <div className="grid grid-cols-2 gap-4">
-          {italianDishes.map((dish) => (
-            <Card
-              key={dish.id}
-              className="overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow bg-white"
+        <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
+          {tabs.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              aria-pressed={tab === t}
+              className={`h-9 shrink-0 rounded-full px-4 text-sm font-semibold transition ${
+                tab === t ? "bg-[#5B2B91] text-white" : "bg-gray-100 text-gray-700"
+              }`}
             >
-              <div className="relative">
-                <Image
-                  src={dish.image || "/placeholder.svg"}
-                  alt={dish.name}
-                  width={200}
-                  height={140}
-                  className="w-full h-36 object-cover"
-                />
-
-                {/* BOGO Badge - Red Corner Ribbon */}
-                <div className="absolute top-0 right-0">
-                  <div className="bg-red-500 text-white text-xs font-bold px-3 py-1 transform rotate-12 translate-x-2 -translate-y-1 shadow-lg">
-                    BOGO
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4">
-                <div className="mb-3">
-                  <h3 className="font-bold text-base text-gray-900 leading-tight mb-1">{dish.name}</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">{dish.description}</p>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-lg font-bold text-[#5B2B91]">₹{dish.price}</span>
-                    <span className="text-xs text-green-600 font-medium">+ 1 FREE</span>
-                  </div>
-
-                  <Button
-                    onClick={() => onAddToCart()}
-                    size="sm"
-                    className="bg-[#5B2B91] hover:bg-[#4A2280] text-white font-bold px-4 py-2 rounded-lg shadow-sm"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    ADD
-                  </Button>
-                </div>
-              </div>
-            </Card>
+              {t}
+            </button>
           ))}
         </div>
+      </header>
+
+      <div className="grid grid-cols-2 gap-3 px-4 py-4">
+        {visible.map((dish) => (
+          <article key={dish.id} className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gray-100">
+            <div className="relative">
+              <DishArt kind={dish.art} label={dish.name} className="h-28 w-full" />
+              <span className="absolute top-2 right-2 rounded-md bg-[#c8333b] px-1.5 py-0.5 text-[10px] font-extrabold text-white shadow">
+                BOGO
+              </span>
+            </div>
+            <div className="p-3">
+              <h2 className="flex items-start gap-1.5 text-sm leading-tight font-bold text-gray-900">
+                <VegMark veg={dish.veg} />
+                {dish.name}
+              </h2>
+              <p className="mt-1 line-clamp-2 text-xs text-gray-500">{dish.description}</p>
+              <div className="mt-2 flex items-end justify-between">
+                <div>
+                  <p className="text-base font-extrabold text-[#5B2B91]">{formatINR(dish.price)}</p>
+                  <p className="text-[11px] font-bold text-green-700">+ 1 FREE</p>
+                </div>
+                <button
+                  onClick={() => addPaid(dish.id)}
+                  aria-label={`Add ${dish.name}`}
+                  className="flex h-9 items-center gap-1 rounded-xl bg-[#5B2B91] px-3 text-xs font-extrabold text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                  ADD
+                </button>
+              </div>
+            </div>
+          </article>
+        ))}
       </div>
 
-      {/* Bottom CTA */}
-      <div className="px-4 py-6 bg-gradient-to-r from-[#5B2B91] to-[#6B3EFF] mx-4 mb-6 rounded-2xl">
-        <div className="text-center text-white">
-          <h3 className="text-xl font-bold mb-2">🇮🇹 Buongiorno Special!</h3>
-          <p className="text-white/90 text-sm mb-4">Every Italian dish comes with a free pair. Limited time offer!</p>
-          <Button
-            onClick={() => onNavigate("cart")}
-            className="bg-[#FFD200] text-black hover:bg-[#E6B800] font-bold px-8 py-3 rounded-xl"
+      {totals.itemCount > 0 && (
+        <div className="px-4 pb-6">
+          <button
+            onClick={() => navigate("cart")}
+            className="h-14 w-full rounded-2xl bg-[#FFD200] text-base font-extrabold text-[#2b1146] shadow-lg"
           >
-            View Cart & Checkout
-          </Button>
+            View cart · {totals.itemCount} items
+          </button>
         </div>
-      </div>
+      )}
     </div>
   )
 }

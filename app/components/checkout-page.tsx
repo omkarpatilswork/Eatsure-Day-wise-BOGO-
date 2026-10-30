@@ -1,212 +1,183 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { useState } from "react"
+import { ArrowLeft, Banknote, Check, Clock, CreditCard, Home, MapPin, Smartphone, Briefcase } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, MapPin, Clock, CreditCard, Wallet, Banknote, Plus, Edit, Gift } from "lucide-react"
-import Image from "next/image"
+import { BillSummary } from "./cart-page"
+import { useBogoApp } from "./app-context"
+import { brandById, dishById, formatINR } from "@/lib/bogo-data"
 
-interface CheckoutPageProps {
-  onNavigate: (screen: string) => void
-}
+const addresses = [
+  { id: "Home", icon: Home, line: "5th Block, Koramangala, Bengaluru 560095" },
+  { id: "Work", icon: Briefcase, line: "Embassy Tech Village, Outer Ring Road, Bengaluru 560103" },
+]
 
-export default function CheckoutPage({ onNavigate }: CheckoutPageProps) {
+const payments = [
+  { id: "UPI", title: "UPI", detail: "Pay with any UPI app", icon: Smartphone, tag: "Recommended" },
+  { id: "Card", title: "Credit / Debit card", detail: "Visa, Mastercard, RuPay", icon: CreditCard },
+  { id: "COD", title: "Cash on delivery", detail: "Pay when the food arrives", icon: Banknote },
+]
+
+export default function CheckoutPage() {
+  const { cart, totals, dispatch, navigate } = useBogoApp()
+  const [address, setAddress] = useState("Home")
+  const [changingAddress, setChangingAddress] = useState(false)
+  const [payment, setPayment] = useState("UPI")
+
+  const brandNames = [...new Set(cart.lines.map((l) => brandById(dishById(l.paidDishId).brandId).name))]
+  const eta = Math.max(0, ...cart.lines.map((l) => brandById(dishById(l.paidDishId).brandId).deliveryMins))
+  const selectedAddress = addresses.find((a) => a.id === address)!
+
+  if (cart.lines.length === 0) {
+    return (
+      <div className="flex min-h-full flex-col items-center justify-center px-8 text-center">
+        <p className="font-bold text-gray-900">Nothing to check out yet.</p>
+        <button onClick={() => navigate("bogo", { chip: "All" })} className="mt-4 h-12 rounded-2xl bg-[#5B2B91] px-6 font-bold text-white">
+          Explore BOGO Zone
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header - Order Summary in Purple */}
-      <div className="bg-[#5B2B91] px-4 py-6 text-white">
-        <div className="flex items-center mb-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onNavigate("cart")}
-            className="text-white hover:bg-white/20 mr-3"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </Button>
+    <div className="min-h-full bg-gray-50">
+      <header className="bg-[#5B2B91] px-4 pt-4 pb-5 text-white">
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate("cart")} aria-label="Back" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/15">
+            <ArrowLeft className="h-6 w-6" />
+          </button>
           <div>
-            <h1 className="text-xl font-bold">Checkout</h1>
-            <p className="text-white/80 text-sm">Review your order</p>
+            <h1 className="text-xl font-extrabold">Checkout</h1>
+            <p className="text-sm text-white/75">Review and place your order</p>
           </div>
         </div>
-
-        {/* Order Summary Header */}
-        <Card className="bg-white/15 backdrop-blur border-0 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white/90 text-sm">Ovenstory • 2 items</p>
-              <p className="font-bold text-lg">₹428</p>
-              <div className="flex items-center mt-1">
-                <span className="text-[#FFD200] text-sm font-medium">BOGO Savings Applied</span>
-                <Badge className="ml-2 bg-[#FFD200] text-black hover:bg-[#FFD200] text-xs">-₹399</Badge>
-              </div>
-            </div>
-            <div className="text-right">
-              <Badge className="bg-green-100 text-green-800 hover:bg-green-100 font-bold px-3 py-1">BOGO Applied</Badge>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <div className="px-4 py-4 space-y-6">
-        {/* Upsell Card - Add drink for ₹79 */}
-        <Card className="p-4 border-2 border-[#FFD200] bg-[#FFD200]/10">
-          <div className="flex items-center gap-4">
-            <Image
-              src="/images/dessert-cake.png"
-              alt="Drink"
-              width={80}
-              height={80}
-              className="rounded-xl object-cover"
-            />
-            <div className="flex-1">
-              <h3 className="font-bold text-base">Add drink or dessert for ₹79</h3>
-              <p className="text-sm text-gray-600 mb-2">Coca Cola • 300ml or Chocolate Cake</p>
-              <p className="text-xs text-[#5B2B91] font-medium">Perfect with your pizza!</p>
-            </div>
-            <Button size="sm" className="bg-[#5B2B91] hover:bg-[#4A2280] text-white px-4 py-2 rounded-xl">
-              <Plus className="w-4 h-4 mr-1" />
-              ADD
-            </Button>
-          </div>
-        </Card>
-
-        {/* Delivery Address */}
-        <Card className="p-4 bg-white border-0 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-lg flex items-center">
-              <MapPin className="w-5 h-5 mr-2 text-[#5B2B91]" />
-              Delivery Address
-            </h3>
-            <Button variant="ghost" size="sm" className="text-[#5B2B91] hover:bg-[#5B2B91]/10">
-              <Edit className="w-4 h-4 mr-1" />
-              Change
-            </Button>
-          </div>
-          <Card className="bg-gray-50 border-0 p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="font-bold text-base mb-1">Home</p>
-                <p className="text-sm text-gray-600 mb-3 leading-relaxed">
-                  123 Koramangala 5th Block, Near Forum Mall, Bangalore - 560095
-                </p>
-                <div className="flex items-center text-sm text-gray-600">
-                  <Clock className="w-4 h-4 mr-1" />
-                  Delivery in 25-30 mins
-                </div>
-              </div>
-            </div>
-          </Card>
-        </Card>
-
-        {/* Payment Options */}
-        <Card className="p-4 bg-white border-0 shadow-sm">
-          <h3 className="font-bold text-lg mb-4 flex items-center">
-            <CreditCard className="w-5 h-5 mr-2 text-[#5B2B91]" />
-            Payment Options
-          </h3>
-
-          <RadioGroup defaultValue="upi" className="space-y-4">
-            <Card className="border border-gray-200 hover:border-[#5B2B91] transition-colors">
-              <div className="flex items-center space-x-4 p-4">
-                <RadioGroupItem value="upi" id="upi" />
-                <Label htmlFor="upi" className="flex items-center flex-1 cursor-pointer">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                    <Wallet className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">UPI</p>
-                    <p className="text-sm text-gray-600">Pay using any UPI app</p>
-                  </div>
-                </Label>
-                <Badge variant="secondary" className="text-xs">
-                  Recommended
-                </Badge>
-              </div>
-            </Card>
-
-            <Card className="border border-gray-200 hover:border-[#5B2B91] transition-colors">
-              <div className="flex items-center space-x-4 p-4">
-                <RadioGroupItem value="card" id="card" />
-                <Label htmlFor="card" className="flex items-center flex-1 cursor-pointer">
-                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mr-3">
-                    <CreditCard className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">Credit/Debit Card</p>
-                    <p className="text-sm text-gray-600">Visa, Mastercard, Rupay</p>
-                  </div>
-                </Label>
-              </div>
-            </Card>
-
-            <Card className="border border-gray-200 hover:border-[#5B2B91] transition-colors">
-              <div className="flex items-center space-x-4 p-4">
-                <RadioGroupItem value="cod" id="cod" />
-                <Label htmlFor="cod" className="flex items-center flex-1 cursor-pointer">
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                    <Banknote className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">Cash on Delivery</p>
-                    <p className="text-sm text-gray-600">Pay when food arrives</p>
-                  </div>
-                </Label>
-              </div>
-            </Card>
-          </RadioGroup>
-        </Card>
-
-        {/* Final Bill */}
-        <Card className="p-4 bg-white border-0 shadow-sm">
-          <h3 className="font-bold text-lg mb-4">Bill Details</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Margherita Pizza</span>
-              <span className="font-semibold">₹399</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <div className="flex items-center">
-                <span className="text-[#FFD200] font-medium">Cheese Burst Pizza</span>
-                <Badge className="ml-2 bg-[#FFD200] text-black hover:bg-[#FFD200] text-xs">FREE</Badge>
-              </div>
-              <span className="text-[#FFD200] font-bold">₹0</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Delivery Fee</span>
-              <span className="font-semibold">₹29</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Taxes & Charges</span>
-              <span className="font-semibold">₹20</span>
-            </div>
-            <hr className="my-3" />
-            <div className="flex justify-between items-center">
-              <span className="font-bold text-lg">Total Amount</span>
-              <span className="font-bold text-xl text-[#5B2B91]">₹448</span>
-            </div>
-            <Card className="bg-[#FFD200]/20 border-0 p-3 mt-4">
-              <div className="flex items-center justify-center">
-                <Gift className="w-5 h-5 text-[#5B2B91] mr-2" />
-                <span className="text-[#5B2B91] font-bold text-sm">You saved ₹399 with BOGO! 🎉</span>
-              </div>
-            </Card>
-          </div>
-        </Card>
-
-        {/* Place Order Button */}
-        <div className="pb-6">
-          <Button
-            onClick={() => onNavigate("celebration")}
-            className="w-full bg-[#5B2B91] hover:bg-[#4A2280] text-white font-bold py-4 text-lg rounded-2xl shadow-lg"
-          >
-            Place Order • ₹448
-          </Button>
-          <p className="text-center text-xs text-gray-500 mt-3">
-            By placing this order, you agree to our Terms & Conditions
+        <div className="mt-4 rounded-2xl bg-white/12 p-4 ring-1 ring-white/15">
+          <p className="text-sm text-white/80">
+            {brandNames.join(" + ")} · {totals.itemCount} items
           </p>
+          <p className="mt-0.5 text-3xl font-black">{formatINR(totals.grandTotal)}</p>
+          {totals.bogoSavings > 0 && (
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#FFD200] px-2 py-1 text-xs font-extrabold text-[#2b1146]">
+              <Check className="h-3.5 w-3.5" strokeWidth={3} />
+              BOGO Savings Applied · −{formatINR(totals.bogoSavings)}
+            </p>
+          )}
+        </div>
+      </header>
+
+      <div className="space-y-4 px-4 py-4">
+        <section className="rounded-3xl bg-white p-4 ring-1 ring-gray-100">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-extrabold text-gray-900">
+              <MapPin className="h-5 w-5 text-[#5B2B91]" /> Deliver to
+            </h2>
+            <button onClick={() => setChangingAddress((v) => !v)} className="text-sm font-bold text-[#5B2B91]">
+              {changingAddress ? "Done" : "Change"}
+            </button>
+          </div>
+          {changingAddress ? (
+            <div className="mt-3 space-y-2">
+              {addresses.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => {
+                    setAddress(a.id)
+                    setChangingAddress(false)
+                  }}
+                  className={`flex w-full items-start gap-3 rounded-2xl p-3 text-left ring-2 ${
+                    address === a.id ? "ring-[#5B2B91]" : "ring-gray-100"
+                  }`}
+                >
+                  <a.icon className="mt-0.5 h-5 w-5 text-[#5B2B91]" />
+                  <span>
+                    <span className="block font-bold text-gray-900">{a.id}</span>
+                    <span className="block text-sm text-gray-500">{a.line}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-3 rounded-2xl bg-gray-50 p-3">
+              <p className="font-bold text-gray-900">{selectedAddress.id}</p>
+              <p className="text-sm text-gray-500">{selectedAddress.line}</p>
+              <p className="mt-2 flex items-center gap-1 text-sm text-gray-600">
+                <Clock className="h-4 w-4" /> Arrives in {eta}–{eta + 5} mins
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-3xl bg-white p-4 ring-1 ring-gray-100">
+          <h2 className="flex items-center gap-2 font-extrabold text-gray-900">
+            <CreditCard className="h-5 w-5 text-[#5B2B91]" /> Pay with
+          </h2>
+          <RadioGroup value={payment} onValueChange={setPayment} className="mt-3 gap-2">
+            {payments.map((p) => (
+              <Label
+                key={p.id}
+                htmlFor={`pay-${p.id}`}
+                className={`flex cursor-pointer items-center gap-3 rounded-2xl p-3 ring-2 transition ${
+                  payment === p.id ? "ring-[#5B2B91]" : "ring-gray-100"
+                }`}
+              >
+                <RadioGroupItem value={p.id} id={`pay-${p.id}`} />
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#5B2B91]/10">
+                  <p.icon className="h-5 w-5 text-[#5B2B91]" />
+                </span>
+                <span className="flex-1">
+                  <span className="block font-bold text-gray-900">{p.title}</span>
+                  <span className="block text-xs font-normal text-gray-500">{p.detail}</span>
+                </span>
+                {p.tag && <span className="rounded-md bg-green-50 px-1.5 py-0.5 text-[11px] font-bold text-green-700">{p.tag}</span>}
+              </Label>
+            ))}
+          </RadioGroup>
+        </section>
+
+        <section className="rounded-3xl bg-white p-4 ring-1 ring-gray-100">
+          <h2 className="font-extrabold text-gray-900">Your order</h2>
+          <ul className="mt-2 space-y-1.5 text-sm">
+            {cart.lines.map((line) => {
+              const paid = dishById(line.paidDishId)
+              const free = line.freeDishId ? dishById(line.freeDishId) : null
+              return (
+                <li key={line.id}>
+                  <div className="flex justify-between">
+                    <span className="text-gray-700">
+                      {paid.name} ×{line.qty}
+                    </span>
+                    <span className="font-semibold">{formatINR(paid.price * line.qty)}</span>
+                  </div>
+                  {free && (
+                    <div className="flex justify-between">
+                      <span className="flex items-center gap-1.5 text-gray-700">
+                        {free.name} ×{line.qty}
+                        <span className="rounded bg-[#FFD200] px-1 text-[10px] font-extrabold text-[#2b1146]">FREE</span>
+                      </span>
+                      <span className="font-semibold text-green-700">₹0</span>
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+
+        <BillSummary totals={totals} title="Bill details" />
+
+        <div className="pb-6">
+          <button
+            onClick={() => {
+              dispatch({ type: "place-order", address, payment })
+              navigate("celebration")
+            }}
+            className="flex h-14 w-full items-center justify-between rounded-2xl bg-[#5B2B91] px-5 text-base font-extrabold text-white shadow-xl transition hover:bg-[#4A2280]"
+          >
+            <span>{formatINR(totals.grandTotal)}</span>
+            <span>Place Order</span>
+          </button>
+          <p className="mt-3 text-center text-xs text-gray-400">Prototype only: no order is placed and no payment is taken.</p>
         </div>
       </div>
     </div>
