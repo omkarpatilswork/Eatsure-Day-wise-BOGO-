@@ -4,10 +4,10 @@
 
 <br/>
 
-![Case study](https://img.shields.io/badge/product-case%20study-5B2B91?style=for-the-badge)
-![Prototype](https://img.shields.io/badge/clickable-prototype-FFD200?style=for-the-badge&labelColor=2b1146)
+[![Live prototype](https://img.shields.io/badge/live%20prototype-v0--es--bogo.vercel.app-5B2B91?style=for-the-badge)](https://v0-es-bogo.vercel.app)
+![Case study](https://img.shields.io/badge/product-case%20study-2b1146?style=for-the-badge)
 
-![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=flat-square&logo=nextdotjs)
+![Next.js](https://img.shields.io/badge/Next.js-15.5-000000?style=flat-square&logo=nextdotjs)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
@@ -132,7 +132,7 @@ These are the metrics I'd propose for a pilot. They are a plan, not results; thi
 
 ## 08 · Run it yourself
 
-You'll need Node 20+ and pnpm.
+The prototype is live at **[v0-es-bogo.vercel.app](https://v0-es-bogo.vercel.app)**. To run it locally you'll need Node 20+ and pnpm.
 
 ```bash
 git clone https://github.com/omkarpatilswork/Eatsure-Day-wise-BOGO-.git
